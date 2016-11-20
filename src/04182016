@@ -1,0 +1,369 @@
+// main.cpp
+
+
+// my own header
+#include "../hdr/main.h"
+
+
+using namespace std;
+// constants
+#define Scale 1
+#define NeiSiz 60
+//#define threshold 10
+// function declarations
+    template <typename T>
+string ntos ( T Number ,string name)
+{
+    ostringstream ss;
+    ss << Number;
+    string path="./../output/"+name+"_"+ss.str()+".ifs";
+    return path;
+}
+void pause(int set)
+{
+    static int count=0;
+    cout<<"\nstopped at :"<<count;
+    if(set==1)
+    {
+        cout<<"\n Press enter to continue :";
+        getchar();
+    }
+    count++;
+}
+void FindIntPt(std::vector<long>& Pts,IFS2D src_img,int filecount);
+void FindTemplateCorrespondences(IFS2D img1,IFS2D img2,std::vector<long>& img1_IntPt,std::vector<long>& img2_IntPt);
+void FindSIFTCorrespondences(IFS2D img1,IFS2D img2,std::vector<long>& img1_IntPt,std::vector<long>& img2_IntPt);
+int CheckIfMax(int r,int c,int sigma);
+float compareMin(float arr_1[],float arr_2[],float arr_3[]);
+inline void GetNeighbor(IFS2D src_img,float neighbor[NeiSiz*2][NeiSiz*2],int rowInd,int colInd);
+float CompareNeighbor(float neighbor1[NeiSiz*2][NeiSiz*2],float neighbor2[NeiSiz*2][NeiSiz*2]);
+
+// global declarations
+const float Sigma[]={0.707*Scale,1.0*Scale,1.414*Scale,2.0*Scale,2.83*Scale};
+float threshold=0;
+float PercentThreshold=0;
+//const float Sigma[]={2.828,4.0,5.656,8.0,11.32};
+
+/**************************************************************/
+
+int main(int argc,char *argv[])
+{
+    IFS2D first_img (argv[1]);
+    IFS2D second_img (argv[2]);
+    threshold=atof(argv[3]);
+    PercentThreshold=atof(argv[4]);
+    std::vector<long> img1_IntPt;
+    std::vector<long> img2_IntPt;
+
+    FindIntPt(img1_IntPt,first_img,1);
+    FindIntPt(img2_IntPt,second_img,2);
+
+    //cout<<"\nNumber of img1 Interest Pts :"<<img1_IntPt.size();
+    //cout<<"\nNumber of img2 Interest Pts :"<<img2_IntPt.size();
+
+    //pause(1);
+    first_img.Normalize();
+    second_img.Normalize();
+    first_img.WritetoDisk((char *)"./../output/firstnormal.ifs");
+    second_img.WritetoDisk((char *)"./../output/secondnormal.ifs");
+    FindTemplateCorrespondences(first_img,second_img,img1_IntPt,img2_IntPt);
+    return 0;
+}
+void FindSIFTCorrespondences(IFS2D img1,IFS2D img2,std::vector<long>& img1_IntPt,std::vector<long>& img2_IntPt)
+{
+    int img1_NumPt=img1_IntPt.size();/* Number of INterest points in Image 1*/
+    int img2_NumPt=img2_IntPt.size();/* NUmber of INterest points in Image 2 */
+    /* Get the feaure vector*/
+
+    float neighbor16x16[16][16];
+    for(int index=0 ;index != img1_NumPt ; index++)
+    {
+        int cols = img1.getColumns();
+        int rowInd = img1_IntPt.at( index ) / cols;
+        int colInd = img1_IntPt.at( index ) % cols;
+        float **dataptr=img1.getDataPtr();
+        int neighborrow=0;
+        int img_rows=0;
+        int img_cols=0;
+        /* For each point  get the 16x16 */
+        for(int row = rowInd-16 ; row != rowInd+16 ; row++)
+        {
+            int neighborcol=0;
+            for(int col = colInd-16 ; col != colInd+16 ; col++)
+            {
+                if(row >= 0 && row < img_rows && col >= 0 && col < img_cols)
+                {
+                    neighbor16x16[neighborrow][neighborcol]=dataptr[row][col];
+                }
+                neighborcol++;
+            }
+            neighborrow++;
+        }
+        /* For each point  Compute the histogram*/
+        std::vector<float> histogram;
+        for(int row = 0 ; row != 16 ; row++)
+        {
+            for(int col = 0 ; col != 16 ; col++)
+            {
+            }
+
+        }
+    }
+    /* Find the dominant Direction */
+
+    /* Subtract the Grad di with DOminant */
+    /* Quantize the angles */
+    /* compute histogram for each 4x4 */
+
+
+    /* Find the best match */
+
+
+
+
+}
+
+void FindTemplateCorrespondences(IFS2D img1,IFS2D img2,std::vector<long>& img1_IntPt,std::vector<long>& img2_IntPt)
+{
+
+    //cout<<"Fwfsdfsf";
+    int img1_NumPt=img1_IntPt.size();/* Number of INterest points in Image 1*/
+    int img2_NumPt=img2_IntPt.size();/* NUmber of  INterest points in IMaged 2 */
+
+    //pause(1);
+    /* For each point in image 1 find the best match in Image 2 */
+    float maxever=0.0;
+    float img1_neighbor[NeiSiz*2][NeiSiz*2];
+    float img2_neighbor[NeiSiz*2][NeiSiz*2];
+    std::vector<int> matched;
+    for(int img2_index=0 ; img2_index != img2_NumPt ; img2_index++)
+    {
+        matched.push_back(0);
+    }
+    for(int img1_index=0 ;img1_index != img1_NumPt ; img1_index++)
+    {
+        int img1_cols = img1.getColumns();
+        int img1_rowInd = img1_IntPt.at( img1_index ) / img1_cols;
+        int img1_colInd = img1_IntPt.at( img1_index ) % img1_cols;
+        GetNeighbor(img1,img1_neighbor,img1_rowInd,img1_colInd);
+        float maxPercent=0;
+        int maxPercentRow=0;
+        int maxPercentCol=0;
+        int maxPercentInd=0;
+        int count=0;
+        int img2_cols = img2.getColumns();
+        int img2_rows = img2.getRows();
+        float **dataptr=img2.getDataPtr();
+        for(int img2_index=0 ; img2_index != img2_NumPt ; img2_index++)
+        {
+            int img2_rowInd = img2_IntPt.at( img2_index ) / img2_cols;
+            int img2_colInd = img2_IntPt.at( img2_index ) % img2_cols;
+            if(matched.at(img2_index) == 0 && abs(img2_rowInd-img1_rowInd) < 5 && img1_colInd > img1_cols/2 && img2_colInd < img2_cols/2)
+            {
+                count++;
+                /***************************************************************************************/
+                int NeighborRow=0;
+                for(int row = img2_rowInd-NeiSiz ; row != img2_rowInd + NeiSiz ; row++)
+                {
+                    int NeighborCol=0;
+                    for(int col = img2_colInd-NeiSiz ; col != img2_colInd+NeiSiz ; col++)
+                    {
+                        if(row >= 0 && row <(int)img2_rows && col >= 0 && col < (int)img2_cols)
+                        {
+                            img2_neighbor[NeighborRow][NeighborCol]=dataptr[row][col];
+                        }
+                        else
+                        {
+                            img2_neighbor[NeighborRow][NeighborCol]=-1.0;
+                        }
+                        NeighborCol++;
+                    }
+                    NeighborRow++;
+                }
+                /******************************************************************************************************/
+                float percent=CompareNeighbor(img1_neighbor,img2_neighbor);
+                if(maxPercent < percent)
+                {
+                    maxPercent=percent;
+                    maxPercentRow=img2_rowInd;
+                    maxPercentCol=img2_colInd;
+                    maxPercentInd=img2_index;
+                }
+            }
+        }
+        /*if(maxever < maxpercent)
+          {
+          maxever=maxPercent;
+          }*/
+        //if(maxPercent > PercentThreshold);
+        if(maxPercent > PercentThreshold)
+        {
+            /*cout<<"\n index:"<<img1_index<<"/"<<img1_NumPt;
+              cout<<"\tIMG1 :row :"<<img1_rowInd<<"\tcol:"<<img1_colInd;
+              cout<<"\tIMG2 :row :"<<maxPercentRow<<"\tcol:"<<maxPercentCol;
+              cout<<"\tMatch :"<<(100*maxPercent)<<"% max:"<<maxever<<"\tcount :"<<count<<"\n";
+            //cout<<img1_rowInd<<" "<<img1_colInd<<" "<<maxPercentRow<<" "<<maxPercentCol<<"\n";
+             **/
+            cout<<maxPercentRow<<" "<<maxPercentCol<<" "<<img1_rowInd<<" "<<img1_colInd<<"\n";
+            matched.at(maxPercentInd)=1;
+        }
+        //cout << '\a';
+        //pause(1);
+        maxPercent=0;
+
+
+    }
+}
+
+float CompareNeighbor(float neighbor1[NeiSiz*2][NeiSiz*2],float neighbor2[NeiSiz*2][NeiSiz*2])
+{
+    float totalCount=0;
+    float matches=0;
+    for(int row=0 ; row != NeiSiz*2 ; row++)
+    {
+        for(int col = 0 ; col != NeiSiz*2 ; col++)
+        {
+            if(neighbor1[row][col] != -1.0 && neighbor2[row][col] != -1.0)
+            {
+                totalCount++;
+                if(fabs(neighbor1[row][col] - neighbor2[row][col]) <0.05)
+                {
+                    matches++;
+                }
+            }
+
+        }
+    }
+    return matches/totalCount;
+
+
+}
+inline void GetNeighbor(IFS2D src_img,float neighbor[NeiSiz*2][NeiSiz*2],int rowInd,int colInd)
+{
+    int NeighborRow=0;
+    float **dataptr=src_img.getDataPtr();
+    for(int row=rowInd-NeiSiz;row != rowInd+NeiSiz;row++)
+    {
+        int NeighborCol=0;
+        for(int col=colInd-NeiSiz;col != colInd+NeiSiz;col++)
+        {
+            if(row >= 0 && row <(int)src_img.getRows() && col >= 0 && col < (int)src_img.getColumns())
+            {
+                //neighbor[NeighborRow][NeighborCol]=src_img.getPixel(row,col); 
+                neighbor[NeighborRow][NeighborCol]=dataptr[row][col];
+            }
+            else
+            {
+                neighbor[NeighborRow][NeighborCol]=-1.0;
+            }
+            // cout<<"\nrowInd :"<<rowInd<<"\tcolInd:"<<colInd<<"\trow:"<<row<<"\tcol:"<<col;
+            // pause(0);
+            NeighborCol++;
+        }
+        NeighborRow++;
+    }
+}
+
+
+void FindIntPt(std::vector<long>& Pts,IFS2D src_img,int filecount)
+{
+    IFS2D Scaledsrc (src_img);
+    IFS2D Output ((char *)"float",src_img.getRows(),src_img.getColumns());
+    std::vector<IFS2D> ScaleSpace;
+    std::vector<IFS2D> DoG;
+
+    int index=0;
+    for(int i=0;i<5 && Scaledsrc.getRows()>25;i++)
+    {
+        ScaleSpace.push_back(IFS2D(Scaledsrc));
+        ScaleSpace[i].Gauss(Sigma[i%5]);
+        if(i%5 != 0)
+        {
+            DoG.push_back(ScaleSpace[i]);
+            DoG[index].subtract(ScaleSpace[i-1]);
+            char *path=(char *)ntos(i,"DoG").c_str();
+            //DoG[index].threshold(DoG[index].getMax());
+            //std::cout<<"\nDOG "<<index<<" "<<Sigma[i%5]<<"\t"<<DoG[index].getMax()<<"  "<<DoG[index].getRows();
+            DoG[index].WritetoDisk(path);
+            index++;
+
+        }
+        if(i!=0 && ((i-4)%5) == 0)
+        {
+            Scaledsrc.SubSample();
+        }
+        //char *pathi=(char *)ntos(i,"Scale").c_str();
+        //ScaleSpace[i].WritetoDisk(pathi);
+    }
+    std::vector<int> LocalMinRow;
+    std::vector<int> LocalMinCol;
+    std::vector<int> LocalMinScale;
+    int count=0;
+    for(int scale=1;scale<=2;scale++)
+    {
+        for(int r=1;r<DoG[0].getRows()-2;r++)
+        {
+            for(int c=1;c<DoG[0].getColumns()-2;c++)
+            {
+                float HigherNeighbor[9];
+                float CurrentNeighbor[9];
+                float LowerNeighbor[9];
+                std::vector<float> VOXEL; 
+                // get the neighborhood in the higher scale 
+                DoG[scale-1].getNeighborhood(r,c,HigherNeighbor);
+                // get the neighborhood in the current scale
+                DoG[scale].getNeighborhood(r,c,CurrentNeighbor);
+                // get the neighborhood in the lower scale 
+                DoG[scale+1].getNeighborhood(r,c,LowerNeighbor);
+
+                float CurVal=DoG[scale].getPixel(r,c);
+                for(int index=0;index<9;index++)
+                {
+                    VOXEL.push_back(HigherNeighbor[index]);
+                    if(index!=4) VOXEL.push_back(CurrentNeighbor[index]);
+                    VOXEL.push_back(LowerNeighbor[index]);
+
+                }
+                int minflag=0;
+                int maxflag=0;
+                for(int index=0;index!=(int)VOXEL.size();index++)
+                {
+                    if(VOXEL.at(index)<CurVal)
+                    {
+                        maxflag++;
+                    }
+                    if(VOXEL.at(index)>CurVal)
+                    {
+                        minflag++;
+                    }
+                }
+                if((maxflag==26 || minflag==26 ) && CurVal > threshold)
+                {
+                    //cout<<"*";
+                    Output.putPixel(r,c,Output.getPixel(r,c)+10);
+                    if(Output.getPixel(r,c) == 20)
+                        count++;
+                }
+            }
+
+        }
+
+    }
+    char *path=(char *)ntos(filecount,"POI_").c_str();
+    Output.WritetoDisk(path);
+    int pix=0;
+    int cols=Output.getColumns();
+    for(int r=0;r<Output.getRows();r++)
+    {
+        for(int c=0;c<Output.getColumns();c++)
+        {
+            if(Output.getPixel(r,c)>0)
+            {
+                Pts.push_back((cols*r)+c);
+                //cout<<"\n r:"<<r<<" c:"<<c<<" val:"<<(cols*r)+c<<" cols:"<<cols;
+                pix++;
+            }
+        }
+    }
+    //cout<<"####"<<pix<<"####";
+}

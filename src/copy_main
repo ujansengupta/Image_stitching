@@ -1,0 +1,326 @@
+// main.cpp
+
+
+// my own header
+#include "../hdr/main.h"
+
+
+using namespace std;
+// constants
+#define Scale 1
+#define NeighborSize 60
+//#define threshold 10
+// function declarations
+    template <typename T>
+string ntos ( T Number ,string name)
+{
+    ostringstream ss;
+    ss << Number;
+    string path="./../output/"+name+"_"+ss.str()+".ifs";
+    return path;
+}
+void pause(int set)
+{
+    static int count=0;
+    cout<<"\nstopped at :"<<count;
+    if(set==1)
+    {
+        cout<<"\n Press enter to continue :";
+        getchar();
+    }
+    count++;
+}
+void FindIntPt(std::vector<long>& Pts,IFS2D src_img,int filecount);
+void FindCorrespondences(IFS2D img1,IFS2D img2,std::vector<long>& img1_IntPt,std::vector<long>& img2_IntPt);
+int CheckIfMax(int r,int c,int sigma);
+float compareMin(float arr_1[],float arr_2[],float arr_3[]);
+void GetNeighbor(IFS2D src_img,float **neighbor,int rowInd,int colInd);
+
+// global declarations
+const float Sigma[]={0.707*Scale,1.0*Scale,1.414*Scale,2.0*Scale,2.83*Scale};
+float threshold=0;
+//const float Sigma[]={2.828,4.0,5.656,8.0,11.32};
+
+/**************************************************************/
+
+int main(int argc,char *argv[])
+{
+    IFS2D first_img (argv[1]);
+    IFS2D second_img (argv[2]);
+    threshold=atof(argv[3]);
+    std::vector<long> img1_IntPt;
+    std::vector<long> img2_IntPt;
+
+    FindIntPt(img1_IntPt,first_img,1);
+    FindIntPt(img2_IntPt,second_img,2);
+
+    cout<<"\nNumber of img1 Interest Pts :"<<img1_IntPt.size();
+    cout<<"\nNumber of img2 Interest Pts :"<<img2_IntPt.size();
+
+    pause(1);
+    FindCorrespondences(first_img,second_img,img1_IntPt,img2_IntPt);
+    return 0;
+}
+
+void FindCorrespondences(IFS2D img1,IFS2D img2,std::vector<long>& img1_IntPt,std::vector<long>& img2_IntPt)
+{
+
+    cout<<"Fwfsdfsf";
+    int img1_NumPt=img1_IntPt.size();
+    int img2_NumPt=img2_IntPt.size();
+    //std::vector<vector<vector<int>>> vec (10,vector<vector<int> >(NeighborSize,vector <int>(NeighborSize)));
+    /*float img1_Neighbor[img1_NumPt][NeighborSize][NeighborSize];
+      float img2_Neighbor[img2_NumPt][NeighborSize][NeighborSize];
+      getchar();
+
+      for(int index=0;index<(int)img1_IntPt.size();index++)
+      {
+      int cols=img1.getColumns();
+      int rowInd=img1_IntPt.at(index)/cols;
+      int colInd=img1_IntPt.at(index)%cols;
+
+      int NeighborRow=0;
+      pause(1);
+      for(int row=rowInd-30;row != rowInd+30;row++)
+      {
+      int NeighborCol=0;
+      for(int col=colInd-30;col != colInd+30;col++)
+      {
+      if(row >= 0 && row <(int)img1.getRows() && col >= 0 && col < (int)img1.getColumns())
+      {
+      img1_Neighbor[index][NeighborRow][NeighborCol]=img1.getPixel(row,col); 
+      }
+      else
+      {
+      img1_Neighbor[index][NeighborRow][NeighborCol]=-1.0; 
+      }
+      cout<<"\nrowInd :"<<rowInd<<"\tcolInd:"<<colInd<<"\trow:"<<row<<"\tcol:"<<col;
+      pause(1);
+      NeighborCol++;
+      }
+      NeighborRow++;
+      }
+      } 
+      for(int index=0;index<(int)img2_IntPt.size();index++)
+      {
+      int cols=img2.getColumns();
+      int rowInd=img2_IntPt.at(index)/cols;
+      int colInd=img2_IntPt.at(index)%cols;
+
+      int NeighborRow=0;
+      for(int row=rowInd-30;row != rowInd+30;row++)
+      {
+      int NeighborCol=0;
+      for(int col=colInd-30;col != colInd+30;col++)
+      {
+      if(row >= 0 && row <(int)img2.getRows() && col >= 0 && col < (int)img2.getColumns())
+      {
+      img2_Neighbor[index][NeighborRow][NeighborCol]=img2.getPixel(row,col); 
+      }
+      else
+      {
+      img2_Neighbor[index][NeighborRow][NeighborCol]=-1.0; 
+      }
+    // cout<<"\nrowInd :"<<rowInd<<"\tcolInd:"<<colInd<<"\trow:"<<row<<"\tcol:"<<col;
+    // pause(0);
+    NeighborCol++;
+    }
+    NeighborRow++;
+    }
+    } 
+
+    int matchedPts=40;
+    int img1Correspondence[img1_IntPt.size()];
+    float img1MatchPercent[img1_IntPt.size()];
+
+    int img2Correspondence[img2_IntPt.size()];
+    float img2MatchPercent[img2_IntPt.size()];
+
+    for(int index=0; index != (int)img1_IntPt.size() ; index++)
+    {
+    img1Correspondence[index]=-1; 
+    img1MatchPercent[index]=-1.0; 
+}
+for(int index=0; index != (int)img2_IntPt.size() ; index++)
+{
+    img2Correspondence[index]=-1; 
+    img2MatchPercent[index]=-1.0; 
+}
+
+for(int img1Index=0 ; img1Index < (int)img1_IntPt.size() ; img1Index ++)
+{
+    int img1cols=img1.getColumns();
+    int img1rowInd=img1_IntPt.at(img1Index)/img1cols;
+    int img1colInd=img1_IntPt.at(img1Index)%img1cols;
+    for(int img2Index=0 ; img2Index < (int)img2_IntPt.size() ; img2Index ++)
+    {
+        int img2cols=img2.getColumns();
+        int img2rowInd=img2_IntPt.at(img2Index)/img2cols;
+        int img2colInd=img2_IntPt.at(img2Index)%img2cols;
+        int totalCount=0;
+        int matchCount=0;
+        cout<<"\nimg1Index :"<<img1Index<<"\timg2 Index:"<<img2Index;
+        cout<<"\nimg1Pt :"<<img1rowInd<<" "<<img1colInd<<"\timg2 Pt:"<<img2rowInd<<" "<<img2colInd;
+        for(int r=0;r!=60;r++)
+        {
+            for(int c=0;c!=60;c++)
+            {
+                if(img1_Neighbor[img1Index][r][c] != -1.0 && img2_Neighbor[img2Index][r][c] != -1.0)
+                {
+                    if((img2_Neighbor[img2Index][r][c] - img1_Neighbor[img1Index][r][c]) < 5)
+                    {
+                        matchCount++;
+                    }
+                    totalCount++;
+                    //cout<<"\n $"<<img1_Neighbor[img1Index][r][c]<<","<<img2_Neighbor[img2Index][r][c]<<"$ ";
+                    //pause(1);
+                }
+                else
+                {
+                    //cout<<" <"<<img1_Neighbor[img1Index][r][c]<<","<<img2_Neighbor[img2Index][r][c]<<">";;
+
+                }
+            }
+            //cout<<"\n";
+        }
+        cout<<"\n match Count: "<<matchCount<<" Total Count :"<<totalCount<<" Match Percent"<<(100*matchCount/totalCount)<<"%";
+        pause(1);
+    }
+
+
+
+
+}*/
+}
+
+
+void GetNeighbor(IFS2D src_img,float **neighbor,int rowInd,int colInd)
+{
+    int NeighborRow=0;
+    for(int row=rowInd-30;row != rowInd+30;row++)
+    {
+        int NeighborCol=0;
+        for(int col=colInd-30;col != colInd+30;col++)
+        {
+            if(row >= 0 && row <(int)src_img.getRows() && col >= 0 && col < (int)src_img.getColumns())
+            {
+                neighbor[NeighborRow][NeighborCol]=src_img.getPixel(row,col); 
+            }
+            else
+            {
+                neighbor[NeighborRow][NeighborCol]=-1.0;
+            }
+            // cout<<"\nrowInd :"<<rowInd<<"\tcolInd:"<<colInd<<"\trow:"<<row<<"\tcol:"<<col;
+            // pause(0);
+            NeighborCol++;
+        }
+        NeighborRow++;
+    }
+
+
+
+}
+
+
+void FindIntPt(std::vector<long>& Pts,IFS2D src_img,int filecount)
+{
+    IFS2D Scaledsrc (src_img);
+    IFS2D Output ((char *)"float",src_img.getRows(),src_img.getColumns());
+    std::vector<IFS2D> ScaleSpace;
+    std::vector<IFS2D> DoG;
+
+    int index=0;
+    for(int i=0;i<5 && Scaledsrc.getRows()>25;i++)
+    {
+        ScaleSpace.push_back(IFS2D(Scaledsrc));
+        ScaleSpace[i].Gauss(Sigma[i%5]);
+        if(i%5 != 0)
+        {
+            DoG.push_back(ScaleSpace[i]);
+            DoG[index].subtract(ScaleSpace[i-1]);
+            char *path=(char *)ntos(i,"DoG").c_str();
+            //DoG[index].threshold(DoG[index].getMax());
+            std::cout<<"\nDOG "<<index<<" "<<Sigma[i%5]<<"\t"<<DoG[index].getMax()<<"  "<<DoG[index].getRows();
+            DoG[index].WritetoDisk(path);
+            index++;
+
+        }
+        if(i!=0 && ((i-4)%5) == 0)
+        {
+            Scaledsrc.SubSample();
+        }
+        //char *pathi=(char *)ntos(i,"Scale").c_str();
+        //ScaleSpace[i].WritetoDisk(pathi);
+    }
+    std::vector<int> LocalMinRow;
+    std::vector<int> LocalMinCol;
+    std::vector<int> LocalMinScale;
+    int count=0;
+    for(int scale=1;scale<=2;scale++)
+    {
+        for(int r=1;r<DoG[0].getRows()-2;r++)
+        {
+            for(int c=1;c<DoG[0].getColumns()-2;c++)
+            {
+                float HigherNeighbor[9];
+                float CurrentNeighbor[9];
+                float LowerNeighbor[9];
+                std::vector<float> VOXEL; 
+                // get the neighborhood in the higher scale 
+                DoG[scale-1].getNeighborhood(r,c,HigherNeighbor);
+                // get the neighborhood in the current scale
+                DoG[scale].getNeighborhood(r,c,CurrentNeighbor);
+                // get the neighborhood in the lower scale 
+                DoG[scale+1].getNeighborhood(r,c,LowerNeighbor);
+
+                float CurVal=DoG[scale].getPixel(r,c);
+                for(int index=0;index<9;index++)
+                {
+                    VOXEL.push_back(HigherNeighbor[index]);
+                    if(index!=4) VOXEL.push_back(CurrentNeighbor[index]);
+                    VOXEL.push_back(LowerNeighbor[index]);
+
+                }
+                int minflag=0;
+                int maxflag=0;
+                for(int index=0;index!=(int)VOXEL.size();index++)
+                {
+                    if(VOXEL.at(index)<CurVal)
+                    {
+                        maxflag++;
+                    }
+                    if(VOXEL.at(index)>CurVal)
+                    {
+                        minflag++;
+                    }
+                }
+                if((maxflag==26 || minflag==26 ) && CurVal > threshold)
+                {
+                    cout<<"*";
+                    Output.putPixel(r,c,Output.getPixel(r,c)+10);
+                    if(Output.getPixel(r,c) == 20)
+                        count++;
+                }
+            }
+
+        }
+
+    }
+    char *path=(char *)ntos(filecount,"POI_").c_str();
+    Output.WritetoDisk(path);
+    int pix=0;
+    int cols=Output.getColumns();
+    for(int r=0;r<Output.getRows();r++)
+    {
+        for(int c=0;c<Output.getColumns();c++)
+        {
+            if(Output.getPixel(r,c)>0)
+            {
+                Pts.push_back((cols*r)+c);
+                cout<<"\n r:"<<r<<" c:"<<c<<" val:"<<(cols*r)+c<<" cols:"<<cols;
+                pix++;
+            }
+        }
+    }
+    //cout<<"####"<<pix<<"####";
+}
